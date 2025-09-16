@@ -1,0 +1,194 @@
+openapi: 3.0.3
+info:
+  title: Solicitudes API
+  version: 1.0.0
+servers:
+  - url: https://solicitudes-dev.com
+paths:
+  /requests:
+    post:
+      summary: Crear solicitud
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [titulo, descripcion, prioridad]
+              properties:
+                titulo: { type: string }
+                descripcion: { type: string }
+                prioridad: { type: string, enum: [BAJA, MEDIA, ALTA] }
+                adjuntos:
+                  type: array
+                  items: { type: string, description: "S3 pre-signed URL key" }
+      responses:
+        "201":
+          description: Creada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Solicitud" }
+    get:
+      summary: Listar solicitudes
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: estado
+          schema:
+            {
+              type: string,
+              enum: [NUEVA, ASIGNADA, EN_REVISION, APROBADA, DENEGADA, CERRADA],
+            }
+        - in: query
+          name: responsableId
+          schema: { type: string }
+        - in: query
+          name: creadorId
+          schema: { type: string }
+        - in: query
+          name: desde
+          schema: { type: string, format: date-time }
+        - in: query
+          name: hasta
+          schema: { type: string, format: date-time }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Solicitud" }
+  /requests/{id}:
+    get:
+      summary: Obtener solicitud
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Solicitud" }
+  /requests/{id}/assign:
+    post:
+      summary: Asignar solicitud
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [responsableId]
+              properties:
+                responsableId: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Asignacion" }
+  /requests/{id}/comments:
+    post:
+      summary: Agregar comentario
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mensaje]
+              properties:
+                mensaje: { type: string }
+      responses:
+        "201":
+          description: Creado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Comentario" }
+  /requests/{id}/decision:
+    post:
+      summary: Aprobar o denegar
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision]
+              properties:
+                decision: { type: string, enum: [APROBADA, DENEGADA] }
+                motivo: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Decision" }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Solicitud:
+      type: object
+      properties:
+        id: { type: string }
+        folio: { type: string }
+        titulo: { type: string }
+        descripcion: { type: string }
+        prioridad: { type: string }
+        estado: { type: string }
+        creadorId: { type: string }
+        responsableId: { type: string, nullable: true }
+        fechaCreacion: { type: string, format: date-time }
+        fechaActualizacion: { type: string, format: date-time }
+    Asignacion:
+      type: object
+      properties:
+        id: { type: string }
+        solicitudId: { type: string }
+        responsableId: { type: string }
+        fechaAsignacion: { type: string, format: date-time }
+    Comentario:
+      type: object
+      properties:
+        id: { type: string }
+        solicitudId: { type: string }
+        autorId: { type: string }
+        mensaje: { type: string }
+        fecha: { type: string, format: date-time }
+    Decision:
+      type: object
+      properties:
+        id: { type: string }
+        solicitudId: { type: string }
+        actorId: { type: string }
+        decision: { type: string }
+        motivo: { type: string }
+        fecha: { type: string, format: date-time }
